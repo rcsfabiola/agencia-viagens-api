@@ -2,56 +2,43 @@ package br.com.senai.agenciaviagens.service;
 
 import br.com.senai.agenciaviagens.exception.DestinoNaoEncontradoException;
 import br.com.senai.agenciaviagens.model.Destino;
+import br.com.senai.agenciaviagens.repository.DestinoRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
 public class DestinoService {
 
-    private final Map<Long, Destino> destinos = new ConcurrentHashMap<>();
+    private final DestinoRepository destinoRepository;
 
-    private final AtomicLong proximoId = new AtomicLong(1);
-
-    public DestinoService() {
+    public DestinoService(DestinoRepository destinoRepository) {
+        this.destinoRepository = destinoRepository;
         popularDadosIniciais();
     }
 
     public Destino cadastrar(Destino destino) {
-        Long id = proximoId.getAndIncrement();
-        destino.setId(id);
-        destinos.put(id, destino);
-        return destino;
+        return destinoRepository.save(destino);
     }
 
     public List<Destino> listarTodos() {
-        // ConcurrentHashMap nao mantem ordem de insercao
-        return destinos.values().stream()
-                .sorted(Comparator.comparing(Destino::getId))
-                .collect(Collectors.toList());
+        return destinoRepository.findAll(Sort.by("id"));
     }
 
     public List<Destino> pesquisar(String nome, String localizacao) {
-        return destinos.values().stream()
+        return destinoRepository.findAll(Sort.by("id")).stream()
                 .filter(d -> nome == null || nome.isBlank()
                         || d.getNome().toLowerCase().contains(nome.toLowerCase()))
                 .filter(d -> localizacao == null || localizacao.isBlank()
                         || d.getLocalizacao().toLowerCase().contains(localizacao.toLowerCase()))
-                .sorted(Comparator.comparing(Destino::getId))
                 .collect(Collectors.toList());
     }
 
     public Destino buscarPorId(Long id) {
-        Destino destino = destinos.get(id);
-        if (destino == null) {
-            throw new DestinoNaoEncontradoException(id);
-        }
-        return destino;
+        return destinoRepository.findById(id)
+                .orElseThrow(() -> new DestinoNaoEncontradoException(id));
     }
 
     public Destino atualizar(Long id, Destino dadosAtualizados) {
@@ -63,23 +50,27 @@ public class DestinoService {
         existente.setHoteisDisponiveis(dadosAtualizados.getHoteisDisponiveis());
         existente.setAtividadesTuristicas(dadosAtualizados.getAtividadesTuristicas());
 
-        return existente;
+        return destinoRepository.save(existente);
     }
 
     public Destino registrarAvaliacao(Long id, int nota) {
         Destino destino = buscarPorId(id);
         destino.adicionarAvaliacao(nota);
-        return destino;
+        return destinoRepository.save(destino);
     }
 
     public void excluir(Long id) {
-        // o proprio remove ja diz se existia. buscar antes abre uma janela entre os dois.
-        if (destinos.remove(id) == null) {
+        if (!destinoRepository.existsById(id)) {
             throw new DestinoNaoEncontradoException(id);
         }
+        destinoRepository.deleteById(id);
     }
 
     private void popularDadosIniciais() {
+        if (destinoRepository.count() > 0) {
+            return;
+        }
+
         Destino floripa = new Destino(null, "Florianópolis", "Santa Catarina, Brasil",
                 "Ilha da Magia: praias, dunas e gastronomia", 12,
                 List.of("Trilha da Lagoinha do Leste", "Passeio de barco", "Surf na Joaquina"));

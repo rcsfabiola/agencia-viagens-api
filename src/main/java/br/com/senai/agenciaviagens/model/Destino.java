@@ -1,14 +1,19 @@
 package br.com.senai.agenciaviagens.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
+@Entity
+@Table(name = "destinos")
 public class Destino {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long id;
@@ -24,11 +29,16 @@ public class Destino {
     @PositiveOrZero(message = "A quantidade de hoteis nao pode ser negativa")
     private Integer hoteisDisponiveis = 0;
 
+    @ElementCollection
+    @CollectionTable(name = "destino_atividades", joinColumns = @JoinColumn(name = "destino_id"))
+    @Column(name = "atividade")
     private List<String> atividadesTuristicas = new ArrayList<>();
-
+    
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private final List<Integer> avaliacoes = new CopyOnWriteArrayList<>();
-
+    @ElementCollection
+    @CollectionTable(name = "destino_avaliacoes", joinColumns = @JoinColumn(name = "destino_id"))
+    @Column(name = "avaliacao")
+    private List<Integer> avaliacoes = new ArrayList<>();
     public Destino() {
     }
 
